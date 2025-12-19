@@ -88,3 +88,7 @@ for i in 541-1 541-15 576-1 MG1655 NRG857c T75; do
     -o ./ORTHOLOGS/best_reciprocal_matches/${i}_vs_LF82.brm
 done
 ```
+
+6- Generate bar-plot for review in R using the following quarto script:
+
+`./R/scripts/review.plot.qmd`
