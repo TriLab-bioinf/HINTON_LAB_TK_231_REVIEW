@@ -2,7 +2,7 @@
 
 *Melissa Arroyo-Mendoza, Hernan Lorenzi, Greg Phillips, and Deborah M. Hinton*
 
-![](https://doi.org/10.5281/zenodo.17992151)
+[![](https://zenodo.org/badge/DOI/10.5281/zenodo.17992151.svg)](https://doi.org/10.5281/zenodo.17992151)
 
 ## Generate protein-conservation plot for review
 
