@@ -1,0 +1,132 @@
+---
+title: "Code used for generating figure for review"
+author: "Hernan Lorenzi"
+date: "12-19-2025"
+format: html
+editor: visual
+---
+
+# 1- Import libraries
+
+```{r}
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(ggvenn)
+```
+
+# 2- Import data
+
+```{r}
+# Sample prefixes
+samples <- c("541-1","541-15","576-1","MG1655","NRG857c","T75")
+
+# Path to directory with gff files
+# Expected file/path names: path/sample_prefix/genomic.gff
+gff_path <- "../ORTHOLOGS/annotations"
+
+#  ------------- Import gff file for LF82 -------------
+
+annotations <- list()
+for (sample in c(samples,"LF82")){
+  gff.gr <- rtracklayer::import.gff3(con = paste0(gff_path, paste0("/",sample, ".gff")), format="gff3")
+  
+  gene.df <- subset(gff.gr, type=="gene") |> as.data.frame() |>
+    select(seqnames,start,end, strand, Name, gene_biotype, ID ) |>
+    rename("chromosome"="seqnames")
+  
+  cds.df <- subset(gff.gr, type=="CDS") |> as.data.frame() |>
+    select(Name, Parent ) |> subset(!is.na(Name)) |> subset(!duplicated(Parent)) |> 
+    rename("accession"="Name" )
+  
+  annotations[[sample]] <- merge(gene.df, cds.df, by.x="ID", by.y="Parent", all.x=TRUE)
+  
+  # Eliminate annotations for non-protein-coding genes (e.g. tRNAs, snRNAs, rRNAs, etc.)
+  annotations[[sample]] <- subset(annotations[[sample]], gene_biotype=="protein_coding") 
+}
+
+#  ------------- Add best reciprocal match information -------------
+
+brm_path <- "../ORTHOLOGS/best_reciprocal_matches/"
+brms <- list()
+
+for (sample in samples){
+  brms[[sample]] <- read.table(file = paste0(brm_path, sample,"_vs_LF82.brm"), 
+                    stringsAsFactors = FALSE, sep = "\t", 
+                    col.names = c("q_acc", "s_acc", "pid", "q_cov", "s_cov"))
+  annotations[["LF82"]] <- merge(annotations[["LF82"]], brms[[sample]], by.x="accession", by.y="s_acc", all = TRUE)
+  c_names <- colnames(annotations[["LF82"]])
+  c_names[(length(c_names)-3):length(c_names)] <- c(paste0(sample,"_acc"), 
+                                       paste0(sample,"_pid"), 
+                                       paste0(sample,"_cov"), 
+                                       paste0("LF82_cov_vs_",sample))
+  colnames(annotations[["LF82"]]) <- c_names
+}
+
+#  ------------- Store genome specific gene info -------------
+
+specific_genes <- list()
+for (sample in samples){
+  # Get species specific genes not present in LF82. 
+  ss_genes.df <- subset(annotations[[sample]], ! accession %in% brms[[sample]]$q_acc)
+  specific_genes[[sample]] <- ss_genes.df 
+}
+```
+
+# 3- Generate plot
+
+```{r}
+
+#  ------------- Use ggvenn library to build conservation data  -------------  
+
+my_colors <- c("#005F73","#0A9396", "#94D2BD", "#E9D8A6","#EE9B00", "#CA6702","#BB3E03","#9B2226")
+my_colors <- setNames(my_colors, c(samples, "LF82","Conserved"))
+
+plot.list <- list()
+
+for (sample in samples){
+  venn.list <- list()
+  venn.list[[sample]] <- c(brms[[sample]]$s_acc, specific_genes[[sample]]$accession)
+
+  # Add LF82
+  venn.list[["LF82"]] <- annotations[["LF82"]]$accession  
+  
+  pal <- my_colors[c(sample,"LF82")]
+  plot.list[[sample]] <- ggvenn(venn.list, 
+                                fill_color = c(unname(pal)),
+                                stroke_size = 0.5, set_name_size = 4)
+}
+
+#  ------------- Plot venn info as bar plots -------------
+
+my_ls <- list()
+
+# Extract gene conservation info from plot.list
+for (sample in samples){
+  my_ls[[sample]] <- plot.list[[sample]]@data |> 
+    mutate(comp=
+             ifelse(
+              get(sample)==T & LF82==T,"Conserved",
+                ifelse(get(sample)==T,sample,"LF82")
+              )) |>
+    select(comp) |> 
+    group_by(comp) |> 
+    summarise(counts=n()) |> 
+    mutate(strain = sample)
+}
+
+# Transform my_ls into a df
+df <- purrr::list_rbind(my_ls)
+
+# Customize factor labels order
+df$comp <- factor(df$comp, levels = c("Conserved", "LF82", samples))
+
+# Make bar-plot
+pdf(file = "barplot.pdf", width = 8, height = 8)
+df |> ggplot(aes(x=strain, y=counts, fill=comp)) + 
+  geom_col(position = "dodge") + 
+  labs(title="", x="Strain", y="Gene counts", fill = "BRM Result") + 
+  theme_classic() +  
+  scale_fill_manual(values=my_colors)
+dev.off()
+```
