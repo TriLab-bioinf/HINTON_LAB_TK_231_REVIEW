@@ -2,6 +2,8 @@
 
 *Melissa Arroyo-Mendoza, Hernan Lorenzi, Greg Phillips, and Deborah M. Hinton*
 
+![](https://doi.org/10.5281/zenodo.17992151)
+
 ## Generate protein-conservation plot for review
 
 ### Step-1: Identify Best Reciprocal Matches between LF82 proteome and the other 6 proteomes of interest
