@@ -9,9 +9,8 @@ editor: visual
 # 1- Import libraries
 
 ```{r}
-library(dplyr)
-library(purrr)
-library(ggplot2)
+#library(ggvenn)
+library(tidyverse)
 library(ggvenn)
 ```
 
@@ -31,7 +30,7 @@ annotations <- list()
 for (sample in c(samples,"LF82")){
   gff.gr <- rtracklayer::import.gff3(con = paste0(gff_path, paste0("/",sample, ".gff")), format="gff3")
   
-  gene.df <- subset(gff.gr, type=="gene") |> as.data.frame() |>
+  gene.df <- subset(gff.gr, type=="gene") |> as.data.frame() |> 
     select(seqnames,start,end, strand, Name, gene_biotype, ID ) |>
     rename("chromosome"="seqnames")
   
@@ -79,7 +78,10 @@ for (sample in samples){
 
 #  ------------- Use ggvenn library to build conservation data  -------------  
 
-my_colors <- c("#005F73","#0A9396", "#94D2BD", "#E9D8A6","#EE9B00", "#CA6702","#BB3E03","#9B2226")
+my_colors_1 <- c("#005F73","#0A9396","#94D2BD","#E9D8A6", "#EE9B00", "#CA6702","#BB3E03","#9B2226")
+my_colors_2 <- c("#005F73","#698B22", "#94D2BD", "#E9D8A6","#FFAEB9", "#FFA07A","#CD3700","#838B8B")
+
+my_colors <- my_colors_2
 my_colors <- setNames(my_colors, c(samples, "LF82","Conserved"))
 
 plot.list <- list()
